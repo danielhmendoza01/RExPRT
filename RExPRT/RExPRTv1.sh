@@ -144,8 +144,6 @@ Rscript --vanilla helper_scripts/exon_intron_ann.R intersection header annotatio
 log_message "Finished Exon Intron annotation"
 end_timer "Exon and Intron annotation"
 
-chmod u+x helper_scripts/gerp_ann.sh
-chmod u+x helper_scripts/split_bed.sh
 start_timer "GERP annotation"
 log_message "Annotating gerp scores"
 awk '{print $1}' sorted_repeats | uniq | grep -wv "chr" > list.txt
@@ -158,24 +156,14 @@ echo "Annotating genomic features..."
 
 # Check if we should use parallel bedtools
 if command -v parallel >/dev/null 2>&1 && [ -f "helper_scripts/parallel_bedtools.sh" ]; then
-    echo "Using parallel bedtools for enhanced performance..."
-
-    # Run parallel bedtools operations
-    chmod +x helper_scripts/parallel_bedtools.sh
     ./helper_scripts/parallel_bedtools.sh final_annotated.txt
-
-    # Copy result back
     if [ -f "final_annotated_parallel.txt" ]; then
         mv final_annotated_parallel.txt final_annotated.txt
-        echo "Parallel bedtools operations completed"
-    else
-        echo "Parallel bedtools failed, falling back to sequential..."
     fi
 fi
 
 # Fallback to sequential operations if parallel failed or not available
 if [ ! -f "final_annotated_parallel.txt" ]; then
-    echo "Using sequential bedtools operations..."
 
     echo "Annotating TAD boundaries"
     head -1 final_annotated.txt > header
@@ -254,7 +242,6 @@ echo "Finished Annotating percent GC"
 
 start_timer "S2S annotation"
 log_message "Adding S2S annotations"
-pip install numpy --quiet
 Rscript --vanilla helper_scripts/create_S2S_files.R final_annotated.txt
 (cd S2SNet || exit 1; python S2SNet_noGUI_emb_py3_repeats.py) > text_delete
 cut --complement -d$'\t' -f1,2,3 S2SNet/S2SNetTIs_Emb.txt > values
@@ -282,10 +269,6 @@ end_timer "Cleanup"
 #Use ML models to score annotated repeats
 start_timer "ML prediction"
 log_message "Running ML prediction models..."
-pip install scikit-learn==1.1.3 -q
-pip install xgboost -q
-pip install category_encoders -q
-
 python3 helper_scripts/rexprt.py
 log_message "ML prediction completed"
 end_timer "ML prediction"
