@@ -6,3 +6,5 @@ SVM.pckl
 XGB.pckl
 *RExPRTscores.txt
 *TRsAnnotated_RExPRTscores.txt
+.DS_Store
+.Rhistory
