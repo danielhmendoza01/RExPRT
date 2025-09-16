@@ -14,12 +14,12 @@ from sklearn import datasets, metrics, model_selection, svm
 import pickle
 
 #Load SVM model
-infile = open('SVM.pckl', 'rb')
+infile = open('data/SVM.pckl', 'rb')
 model_SVM = pickle.load(infile)
 infile.close()
 
 #Load XGB model
-infile = open('XGB.pckl', 'rb')
+infile = open('data/XGB.pckl', 'rb')
 model_XGB = pickle.load(infile)
 infile.close()
 

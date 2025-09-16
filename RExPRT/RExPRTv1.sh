@@ -89,6 +89,9 @@ if [ ! -f "$INPUT_FILE" ]; then
     exit 1
 fi
 
+# Create data directory if it doesn't exist
+mkdir -p data
+
 # Create temporary directory if configured
 if [ -n "$TEMP_DIR" ] && [ "$TEMP_DIR" != "./tmp" ]; then
     mkdir -p "$TEMP_DIR"
@@ -96,33 +99,33 @@ if [ -n "$TEMP_DIR" ] && [ "$TEMP_DIR" != "./tmp" ]; then
 fi
 
 #Download Annotation files
-if [ ! -d "./annotation_files" ]
+if [ ! -d "data/annotation_files" ]
 then
-    wget -qO- https://zuchnerlab.s3.amazonaws.com/RExPRT_public/annotation_files.tar.gz | tar xvz
+    wget -qO- https://zuchnerlab.s3.amazonaws.com/RExPRT_public/annotation_files.tar.gz | tar xvz -C data/
 fi
 
 #Download GERP files
-if [ ! -d "./gerp_files" ]
+if [ ! -d "data/gerp_files" ]
 then
-    wget -qO- https://zuchnerlab.s3.amazonaws.com/RExPRT_public/gerp_files.tar.gz | tar xvz
+    wget -qO- https://zuchnerlab.s3.amazonaws.com/RExPRT_public/gerp_files.tar.gz | tar xvz -C data/
 fi
 
 #Download ML models
-if [ ! -f "SVM.pckl" ]
+if [ ! -f "data/SVM.pckl" ]
 then
-    wget https://zuchnerlab.s3.amazonaws.com/RExPRT_public/SVM.pckl
+    wget -q https://zuchnerlab.s3.amazonaws.com/RExPRT_public/SVM.pckl -P data/
 fi
 
-if [ ! -f "XGB.pckl" ]
+if [ ! -f "data/XGB.pckl" ]
 then
-    wget https://zuchnerlab.s3.amazonaws.com/RExPRT_public/XGB.pckl
+    wget -q https://zuchnerlab.s3.amazonaws.com/RExPRT_public/XGB.pckl -P data/
 fi
 
 # download bedtools
-if [ ! -f "bedtools.static.binary" ]
+if [ ! -f "data/bedtools.static.binary" ]
 then
-    wget -q https://github.com/arq5x/bedtools2/releases/download/v2.29.2/bedtools.static.binary
-    chmod u+x bedtools.static.binary
+    wget -q https://github.com/arq5x/bedtools2/releases/download/v2.29.2/bedtools.static.binary -P data/
+    chmod u+x data/bedtools.static.binary
 fi
 
 # Annotate variants
@@ -130,17 +133,17 @@ repeats=$INPUT_FILE
 
 head -1 "$INPUT_FILE" > header
 tail -n +2 "$INPUT_FILE" > repeats
-./bedtools.static.binary sort -i repeats > del && mv del repeats
+./data/bedtools.static.binary sort -i repeats > del && mv del repeats
 cat header repeats > sorted_repeats
 
 
 start_timer "Exon and Intron annotation"
 log_message "Annotating Exon and Intron"
-head -q -n 1 sorted_repeats annotation_files/Exons_and_introns_UCSC.sorted.bed | paste -sd "\t" > header
+head -q -n 1 sorted_repeats data/annotation_files/Exons_and_introns_UCSC.sorted.bed | paste -sd "\t" > header
 awk '{print $0 "\tgene_distance"}' header > head && mv head header
 sed 's/#//g' header > changed.txt && mv changed.txt header
-./bedtools.static.binary closest -a sorted_repeats -b annotation_files/Exons_and_introns_UCSC.sorted.bed -d > intersection
-Rscript --vanilla helper_scripts/exon_intron_ann.R intersection header annotation_files/UCSC_canonical.txt
+./data/bedtools.static.binary closest -a sorted_repeats -b data/annotation_files/Exons_and_introns_UCSC.sorted.bed -d > intersection
+Rscript --vanilla helper_scripts/exon_intron_ann.R intersection header data/annotation_files/UCSC_canonical.txt
 log_message "Finished Exon Intron annotation"
 end_timer "Exon and Intron annotation"
 
@@ -168,54 +171,54 @@ if [ ! -f "final_annotated_parallel.txt" ]; then
     echo "Annotating TAD boundaries"
     head -1 final_annotated.txt > header
     awk '{print $0 "\tTAD"}' header > head && mv head header
-    ./bedtools.static.binary intersect -a final_annotated.txt -b annotation_files/TADboundaries_CpGcount.bed -c > intersection
+    ./data/bedtools.static.binary intersect -a final_annotated.txt -b data/annotation_files/TADboundaries_CpGcount.bed -c > intersection
     cat header intersection > final_annotated.txt
     echo "Finished annotating TAD boundaries"
 
     echo "Annotating eSTR"
     head -1 final_annotated.txt > header
     awk '{print $0 "\teSTR"}' header > head && mv head header
-    ./bedtools.static.binary intersect -a final_annotated.txt -b annotation_files/eSTR_loci_hg19.sorted.bed -c > intersection
+    ./data/bedtools.static.binary intersect -a final_annotated.txt -b data/annotation_files/eSTR_loci_hg19.sorted.bed -c > intersection
     cat header intersection > final_annotated.txt
     echo "Finished annotating eSTR"
 
     echo "Annotating opRegRegions"
     head -1 final_annotated.txt > header
     awk '{print $0 "\topReg"}' header > head && mv head header
-    ./bedtools.static.binary intersect -a final_annotated.txt -b annotation_files/openRegulatoryRegions_hg19.sorted.bed -c > intersection
+    ./data/bedtools.static.binary intersect -a final_annotated.txt -b data/annotation_files/openRegulatoryRegions_hg19.sorted.bed -c > intersection
     cat header intersection > final_annotated.txt
     echo "Finished annotating opRegRegions"
 
     echo "Annotating promoter regions"
     head -1 final_annotated.txt > header
     awk '{print $0 "\tpromoter"}' header > head && mv head header
-    ./bedtools.static.binary intersect -a final_annotated.txt -b annotation_files/promoters.sorted.bed -c > intersection
+    ./data/bedtools.static.binary intersect -a final_annotated.txt -b data/annotation_files/promoters.sorted.bed -c > intersection
     cat header intersection > final_annotated.txt
     echo "Finished annotating promoter regions"
 fi
 
 echo "Annotating GTEx"
-Rscript --vanilla helper_scripts/gtex_ann.R final_annotated.txt annotation_files/max_tissueExpression_perGene.txt
+Rscript --vanilla helper_scripts/gtex_ann.R final_annotated.txt data/annotation_files/max_tissueExpression_perGene.txt
 echo "Finished annotating GTEX"
 
 echo "Annotating 3'UTR"
 head -1 final_annotated.txt > header
 awk '{print $0 "\tUTR_3"}' header > head && mv head header
-./bedtools.static.binary intersect -a final_annotated.txt -b annotation_files/3primeUTR.sorted.bed -c > intersection
+./data/bedtools.static.binary intersect -a final_annotated.txt -b data/annotation_files/3primeUTR.sorted.bed -c > intersection
 cat header intersection > final_annotated.txt
 echo "Finished annotating 3'UTR"
 
 echo "Annotating 5'UTR"
 head -1 final_annotated.txt > header
 awk '{print $0 "\tUTR_5"}' header > head && mv head header
-./bedtools.static.binary intersect -a final_annotated.txt -b annotation_files/5primeUTR.sorted.bed -c > intersection
+./data/bedtools.static.binary intersect -a final_annotated.txt -b data/annotation_files/5primeUTR.sorted.bed -c > intersection
 cat header intersection > final_annotated.txt
 echo "Finished annotating 5'UTR"
 
 echo "Annotating pLi and loeuf scores"
 head -1 final_annotated.txt > header
 awk '{print $0 "\tchrom\tcstart\tcend\tloeuf\tpLi"}' header > head && mv head header
-./bedtools.static.binary intersect -a final_annotated.txt -b annotation_files/pLI_scores_hg19.sorted.bed -loj > intersection
+./data/bedtools.static.binary intersect -a final_annotated.txt -b data/annotation_files/pLI_scores_hg19.sorted.bed -loj > intersection
 cat header intersection > final_annotated.txt
 Rscript --vanilla helper_scripts/pLi_ann.R final_annotated.txt
 echo "Finished annotating pLi and loeuf scores"
@@ -223,16 +226,16 @@ echo "Finished annotating pLi and loeuf scores"
 echo "Annotating RAD21 binding sites"
 head -1 final_annotated.txt > header
 awk '{print $0 "\tRAD21"}' header > head && mv head header
-cut -f2- annotation_files/NeuralCell_RAD21bindingSites_hg19.txt > file
-./bedtools.static.binary intersect -a final_annotated.txt -b file -c > intersection
+cut -f2- data/annotation_files/NeuralCell_RAD21bindingSites_hg19.txt > file
+./data/bedtools.static.binary intersect -a final_annotated.txt -b file -c > intersection
 cat header intersection > final_annotated.txt
 echo "Finished annotating RAD21"
 
 echo "Annotating SMC3"
 head -1 final_annotated.txt > header
 awk '{print $0 "\tSMC3"}' header > head && mv head header
-cut -f2- annotation_files/NeuralCell_SMC3bindingSites_hg19.txt > file
-./bedtools.static.binary intersect -a final_annotated.txt -b file -c > intersection
+cut -f2- data/annotation_files/NeuralCell_SMC3bindingSites_hg19.txt > file
+./data/bedtools.static.binary intersect -a final_annotated.txt -b file -c > intersection
 cat header intersection > final_annotated.txt
 echo "Finished annotating SMC3"
 

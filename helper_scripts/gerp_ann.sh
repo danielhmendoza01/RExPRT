@@ -36,11 +36,11 @@ echo "Intersecting TRs with GERP files..."
 if [ "$USE_PARALLEL" = true ]; then
     # Use GNU parallel for better load balancing
     cat list.txt | parallel --no-notice --progress -j $PARALLEL_JOBS \
-        './bedtools.static.binary intersect -a repeats_by_chrom/{}.bed.gz -b gerp_files/{}_gerp.bed.gz -sorted -wb > intersections/{}.intersection'
+        './data/bedtools.static.binary intersect -a repeats_by_chrom/{}.bed.gz -b data/gerp_files/{}_gerp.bed.gz -sorted -wb > intersections/{}.intersection'
 else
     # Use traditional background jobs
     while read chr; do
-        ./bedtools.static.binary intersect -a repeats_by_chrom/$chr.bed.gz -b gerp_files/${chr}_gerp.bed.gz -sorted -wb > intersections/$chr.intersection &
+        ./data/bedtools.static.binary intersect -a repeats_by_chrom/$chr.bed.gz -b data/gerp_files/${chr}_gerp.bed.gz -sorted -wb > intersections/$chr.intersection &
     done < list.txt
     wait
 fi

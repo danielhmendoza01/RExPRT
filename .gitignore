@@ -1,10 +1,7 @@
-annotation_files
-gerp_files
-bedtools.static.binary
 rexprt.log
-SVM.pckl
-XGB.pckl
 *RExPRTscores.txt
 *TRsAnnotated_RExPRTscores.txt
 .DS_Store
 .Rhistory
+data/*
+!data/readme.md
