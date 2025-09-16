@@ -102,19 +102,6 @@ then
     wget -qO- https://zuchnerlab.s3.amazonaws.com/RExPRT_public/gerp_files.tar.gz | tar xvz
 fi
 
-# Download helper scripts
-if [ ! -d "./helper_scripts" ]
-then
-    wget -qO- https://zuchnerlab.s3.amazonaws.com/RExPRT_public/helper_scripts.tar.gz | tar xvz
-fi
-
-
-# Download S2SNet
-if [ ! -d "./S2SNet" ]
-then
-    wget -qO- https://zuchnerlab.s3.amazonaws.com/RExPRT_public/S2SNet.tar.gz | tar xvz
-fi
-
 #Download ML models
 if [ ! -f "SVM.pckl" ]
 then
