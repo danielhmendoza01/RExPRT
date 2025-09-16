@@ -1,0 +1,48 @@
+# RExPRT Configuration File
+# This file contains configurable parameters for the multicore RExPRT pipeline
+
+# CPU Configuration
+cpu:
+  # Maximum number of CPU cores to use (default: 96)
+  max_cores: 96
+  # Minimum number of CPU cores to use (default: 1)
+  min_cores: 1
+
+# Memory Configuration
+memory:
+  # Batch size for ML prediction (adjust based on available RAM)
+  ml_batch_size: 10000
+  # I/O buffer size for file operations (in MB)
+  io_buffer_size: 256
+
+# Parallel Processing Configuration
+parallel:
+  # Maximum parallel jobs for bedtools operations
+  max_bedtools_jobs: 4
+  # GNU Parallel nice level for parallel jobs (default: 10)
+  nice_level: 10
+
+# Progress and Logging Configuration
+logging:
+  # Enable detailed progress reporting (true/false)
+  verbose_progress: true
+  # Enable logging to file (true/false)
+  enable_logging: true
+  # Log file location
+  log_file: "rexprt.log"
+  # Enable performance timing (true/false)
+  enable_timing: true
+
+# File System Configuration
+filesystem:
+  # Directory for temporary files (default: ./tmp)
+  temp_dir: "./tmp"
+
+# Performance Tuning
+performance:
+  # Enable parallel bedtools operations (true/false)
+  enable_parallel_bedtools: true
+  # Enable memory optimization for large datasets (true/false)
+  enable_memory_optimization: true
+  # Maximum file size for in-memory processing (in MB)
+  max_in_memory_size: 1000
