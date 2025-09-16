@@ -23,21 +23,21 @@ def load_config(config_file):
 def export_bash_variables(config):
     """Export configuration as bash environment variables"""
     if not config:
-        # Set defaults
-        print("export MAX_CPU_CORES=96")
+        # Set defaults (standard desktop/laptop: 4 cores, 16GB RAM)
+        print("export MAX_CPU_CORES=3")
         print("export MIN_CPU_CORES=1")
         print("export VERBOSE_PROGRESS=true")
-        print("export ENABLE_LOGGING=false")
+        print("export ENABLE_LOGGING=true")
         print("export LOG_FILE='rexprt.log'")
         print("export ENABLE_TIMING=true")
         print("export TEMP_DIR='./tmp'")
-        print("export ML_BATCH_SIZE=10000")
-        print("export IO_BUFFER_SIZE=256")
-        print("export MAX_BEDTOOLS_JOBS=4")
+        print("export ML_BATCH_SIZE=5000")
+        print("export IO_BUFFER_SIZE=128")
+        print("export MAX_BEDTOOLS_JOBS=2")
         print("export PARALLEL_NICE_LEVEL=10")
         print("export ENABLE_PARALLEL_BEDTOOLS=true")
         print("export ENABLE_MEMORY_OPTIMIZATION=true")
-        print("export MAX_IN_MEMORY_SIZE=1000")
+        print("export MAX_IN_MEMORY_SIZE=2000")
         return
 
     # CPU settings

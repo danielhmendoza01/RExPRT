@@ -1,36 +1,51 @@
 #!/bin/bash
 set -eou pipefail
 
-# Load configuration file if it exists
-if [ -f "../rexprt_config.yml" ]; then
-    echo "Loading RExPRT configuration from ../rexprt_config.yml..."
-    eval "$(python3 ../helper_scripts/parse_config.py ../rexprt_config.yml)"
-elif [ -f "rexprt_config.yml" ]; then
-    echo "Loading RExPRT configuration from rexprt_config.yml..."
-    eval "$(python3 helper_scripts/parse_config.py rexprt_config.yml)"
-elif [ -f "../rexprt_config.sh" ]; then
-    echo "Loading RExPRT configuration from ../rexprt_config.sh (legacy)..."
-    source ../rexprt_config.sh
-elif [ -f "rexprt_config.sh" ]; then
-    echo "Loading RExPRT configuration from rexprt_config.sh (legacy)..."
-    source rexprt_config.sh
+# Parse command line arguments
+CONFIG_FILE="rexprt_config.yml"
+INPUT_FILE=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -c|--config)
+            CONFIG_FILE="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "    RExPRT is a machine learning tool to predict tandem repeat pathogenicity
+
+    Usage: To run RExPRT use the following command:
+        ./RExPRT.sh [OPTIONS] TRfile.txt
+    TR file should have 5 columns labelled: chr, start, end, motif, and sampleID
+
+    Options:
+        -c, --config FILE    Specify custom configuration file (default: rexprt_config.yml)
+        -h, --help          Show this help message
+
+    Example of a test file input is located in ./example/input/
+    Example of test output files are in ./example/output/
+
+    For full documentation and detailed instructions visit https://github.com/ZuchnerLab/RExPRT
+
+    Configuration: Edit rexprt_config.yml to customize performance settings"
+            exit 0
+            ;;
+        *)
+            INPUT_FILE="$1"
+            shift
+            ;;
+    esac
+done
+
+# Load configuration file
+if [ -f "$CONFIG_FILE" ]; then
+    echo "Loading RExPRT configuration from $CONFIG_FILE..."
+    eval "$(python3 helper_scripts/parse_config.py "$CONFIG_FILE")"
 else
-    echo "Configuration file not found, using defaults..."
-    # Set default values
-    MAX_CPU_CORES=96
-    MIN_CPU_CORES=1
-    VERBOSE_PROGRESS=true
-    ENABLE_LOGGING=false
-    LOG_FILE="rexprt.log"
-    ENABLE_TIMING=true
-    TEMP_DIR="./tmp"
-    ML_BATCH_SIZE=10000
-    IO_BUFFER_SIZE=256
-    MAX_BEDTOOLS_JOBS=4
-    PARALLEL_NICE_LEVEL=10
-    ENABLE_PARALLEL_BEDTOOLS=true
-    ENABLE_MEMORY_OPTIMIZATION=true
-    MAX_IN_MEMORY_SIZE=1000
+    echo "Error: Configuration file '$CONFIG_FILE' not found!"
+    echo "Please ensure rexprt_config.yml exists or specify a custom config with -c option."
+    echo "Run '$0 --help' for usage information."
+    exit 1
 fi
 
 # Function to log messages
@@ -62,25 +77,15 @@ end_timer() {
 
 log_message "=== RExPRT Pipeline Started ==="
 
-if [ "$1" = "-h" -o "$1" = "--help" ]
-then
-    echo "    RExPRT is a machine learning tool to predict tandem repeat pathogenicity
-
-    Usage: To run RExPRT use the following command:
-        ./RExPRT.sh TRfile.txt
-    TR file should have 5 columns labelled: chr, start, end, motif, and sampleID
-
-    Example of a test file input is located in ./example/input/
-    Example of test output files are in ./example/output/
-
-    For full documentation and detailed instructions visit https://github.com/ZuchnerLab/RExPRT
-
-    Configuration: Edit rexprt_config.yml to customize performance settings"
-    exit 0
+if [ -z "$INPUT_FILE" ]; then
+    echo "Error: No input file provided!"
+    echo "Usage: $0 [OPTIONS] TRfile.txt"
+    echo "Run '$0 --help' for more information."
+    exit 1
 fi
 
-if [ $# -eq 0 ]; then
-    echo "No repeats file provided"
+if [ ! -f "$INPUT_FILE" ]; then
+    echo "Error: Input file '$INPUT_FILE' not found!"
     exit 1
 fi
 
@@ -121,10 +126,10 @@ then
 fi
 
 # Annotate variants
-repeats=$1
+repeats=$INPUT_FILE
 
-head -1 $1 > header
-tail -n +2 $1 > repeats
+head -1 "$INPUT_FILE" > header
+tail -n +2 "$INPUT_FILE" > repeats
 ./bedtools.static.binary sort -i repeats > del && mv del repeats
 cat header repeats > sorted_repeats
 

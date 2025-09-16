@@ -1,25 +1,24 @@
 # RExPRT Configuration File
 # This file contains configurable parameters for the multicore RExPRT pipeline
-# Optimized for standard desktop/laptop systems (4 cores, 16GB RAM)
 
 # CPU Configuration
 cpu:
-  # Maximum number of CPU cores to use (leave 1 core for system)
-  max_cores: 3          # Use 3/4 cores on standard systems
+  # Maximum number of CPU cores to use (default: 96)
+  max_cores: 96
   # Minimum number of CPU cores to use (default: 1)
   min_cores: 1
 
 # Memory Configuration
 memory:
-  # Batch size for ML prediction (fits in 16GB RAM)
-  ml_batch_size: 5000   # Process 5k samples per batch
+  # Batch size for ML prediction (adjust based on available RAM)
+  ml_batch_size: 10000
   # I/O buffer size for file operations (in MB)
-  io_buffer_size: 128   # 128MB I/O buffer
+  io_buffer_size: 256
 
 # Parallel Processing Configuration
 parallel:
   # Maximum parallel jobs for bedtools operations
-  max_bedtools_jobs: 2  # 2 parallel bedtools jobs
+  max_bedtools_jobs: 4
   # GNU Parallel nice level for parallel jobs (default: 10)
   nice_level: 10
 
@@ -46,4 +45,4 @@ performance:
   # Enable memory optimization for large datasets (true/false)
   enable_memory_optimization: true
   # Maximum file size for in-memory processing (in MB)
-  max_in_memory_size: 2000  # 2GB in-memory processing
+  max_in_memory_size: 1000
