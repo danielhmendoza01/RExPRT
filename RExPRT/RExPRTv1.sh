@@ -1,9 +1,22 @@
 #!/bin/bash
 set -eou pipefail
 
+# Auto-detect project directory (where this script is located)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
 # Parse command line arguments
-CONFIG_FILE="rexprt_config.yml"
+CONFIG_FILE=""
 INPUT_FILE=""
+
+# Determine config file location (current dir first, then project dir)
+if [ -f "rexprt_config.yml" ]; then
+    CONFIG_FILE="rexprt_config.yml"
+elif [ -f "$PROJECT_DIR/rexprt_config.yml" ]; then
+    CONFIG_FILE="$PROJECT_DIR/rexprt_config.yml"
+else
+    CONFIG_FILE="rexprt_config.yml"  # Default, will show error later
+fi
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -40,7 +53,7 @@ done
 # Load configuration file
 if [ -f "$CONFIG_FILE" ]; then
     echo "Loading RExPRT configuration from $CONFIG_FILE..."
-    eval "$(python3 helper_scripts/parse_config.py "$CONFIG_FILE")"
+    eval "$(python3 "$PROJECT_DIR/helper_scripts/parse_config.py" "$CONFIG_FILE")"
 else
     echo "Error: Configuration file '$CONFIG_FILE' not found!"
     echo "Please ensure rexprt_config.yml exists or specify a custom config with -c option."
@@ -99,31 +112,62 @@ if [ -n "$TEMP_DIR" ] && [ "$TEMP_DIR" != "./tmp" ]; then
 fi
 
 #Download Annotation files
-if [ ! -d "data/annotation_files" ]
-then
+if [ -d "$PROJECT_DIR/data/annotation_files" ]; then
+    echo "Using existing annotation files from project directory..."
+    mkdir -p data
+    ln -sf "$PROJECT_DIR/data/annotation_files" "data/annotation_files" 2>/dev/null || \
+    cp -r "$PROJECT_DIR/data/annotation_files" "data/annotation_files"
+elif [ ! -d "data/annotation_files" ]; then
+    echo "Downloading annotation files..."
+    mkdir -p data
     wget -qO- https://zuchnerlab.s3.amazonaws.com/RExPRT_public/annotation_files.tar.gz | tar xvz -C data/
 fi
 
 #Download GERP files
-if [ ! -d "data/gerp_files" ]
-then
+if [ -d "$PROJECT_DIR/data/gerp_files" ]; then
+    echo "Using existing GERP files from project directory..."
+    mkdir -p data
+    ln -sf "$PROJECT_DIR/data/gerp_files" "data/gerp_files" 2>/dev/null || \
+    cp -r "$PROJECT_DIR/data/gerp_files" "data/gerp_files"
+elif [ ! -d "data/gerp_files" ]; then
+    echo "Downloading GERP files..."
+    mkdir -p data
     wget -qO- https://zuchnerlab.s3.amazonaws.com/RExPRT_public/gerp_files.tar.gz | tar xvz -C data/
 fi
 
 #Download ML models
-if [ ! -f "data/SVM.pckl" ]
-then
+if [ -f "$PROJECT_DIR/data/SVM.pckl" ]; then
+    echo "Using existing SVM model from project directory..."
+    mkdir -p data
+    ln -sf "$PROJECT_DIR/data/SVM.pckl" "data/SVM.pckl" 2>/dev/null || \
+    cp "$PROJECT_DIR/data/SVM.pckl" "data/SVM.pckl"
+elif [ ! -f "data/SVM.pckl" ]; then
+    echo "Downloading SVM model..."
+    mkdir -p data
     wget -q https://zuchnerlab.s3.amazonaws.com/RExPRT_public/SVM.pckl -P data/
 fi
 
-if [ ! -f "data/XGB.pckl" ]
-then
+if [ -f "$PROJECT_DIR/data/XGB.pckl" ]; then
+    echo "Using existing XGB model from project directory..."
+    mkdir -p data
+    ln -sf "$PROJECT_DIR/data/XGB.pckl" "data/XGB.pckl" 2>/dev/null || \
+    cp "$PROJECT_DIR/data/XGB.pckl" "data/XGB.pckl"
+elif [ ! -f "data/XGB.pckl" ]; then
+    echo "Downloading XGB model..."
+    mkdir -p data
     wget -q https://zuchnerlab.s3.amazonaws.com/RExPRT_public/XGB.pckl -P data/
 fi
 
 # download bedtools
-if [ ! -f "data/bedtools.static.binary" ]
-then
+if [ -f "$PROJECT_DIR/data/bedtools.static.binary" ]; then
+    echo "Using existing bedtools from project directory..."
+    mkdir -p data
+    ln -sf "$PROJECT_DIR/data/bedtools.static.binary" "data/bedtools.static.binary" 2>/dev/null || \
+    cp "$PROJECT_DIR/data/bedtools.static.binary" "data/bedtools.static.binary"
+    chmod u+x data/bedtools.static.binary
+elif [ ! -f "data/bedtools.static.binary" ]; then
+    echo "Downloading bedtools..."
+    mkdir -p data
     wget -q https://github.com/arq5x/bedtools2/releases/download/v2.29.2/bedtools.static.binary -P data/
     chmod u+x data/bedtools.static.binary
 fi
@@ -143,14 +187,14 @@ head -q -n 1 sorted_repeats data/annotation_files/Exons_and_introns_UCSC.sorted.
 awk '{print $0 "\tgene_distance"}' header > head && mv head header
 sed 's/#//g' header > changed.txt && mv changed.txt header
 ./data/bedtools.static.binary closest -a sorted_repeats -b data/annotation_files/Exons_and_introns_UCSC.sorted.bed -d > intersection
-Rscript --vanilla helper_scripts/exon_intron_ann.R intersection header data/annotation_files/UCSC_canonical.txt
+Rscript --vanilla "$PROJECT_DIR/helper_scripts/exon_intron_ann.R" intersection header data/annotation_files/UCSC_canonical.txt
 log_message "Finished Exon Intron annotation"
 end_timer "Exon and Intron annotation"
 
 start_timer "GERP annotation"
 log_message "Annotating gerp scores"
 awk '{print $1}' sorted_repeats | uniq | grep -wv "chr" > list.txt
-time ./helper_scripts/gerp_ann.sh
+time "$PROJECT_DIR/helper_scripts/gerp_ann.sh"
 log_message "Finished annotating gerp scores"
 end_timer "GERP annotation"
 
@@ -158,8 +202,8 @@ end_timer "GERP annotation"
 echo "Annotating genomic features..."
 
 # Check if we should use parallel bedtools
-if command -v parallel >/dev/null 2>&1 && [ -f "helper_scripts/parallel_bedtools.sh" ]; then
-    ./helper_scripts/parallel_bedtools.sh final_annotated.txt
+if command -v parallel >/dev/null 2>&1 && [ -f "$PROJECT_DIR/helper_scripts/parallel_bedtools.sh" ]; then
+    "$PROJECT_DIR/helper_scripts/parallel_bedtools.sh" final_annotated.txt
     if [ -f "final_annotated_parallel.txt" ]; then
         mv final_annotated_parallel.txt final_annotated.txt
     fi
@@ -198,7 +242,7 @@ if [ ! -f "final_annotated_parallel.txt" ]; then
 fi
 
 echo "Annotating GTEx"
-Rscript --vanilla helper_scripts/gtex_ann.R final_annotated.txt data/annotation_files/max_tissueExpression_perGene.txt
+Rscript --vanilla "$PROJECT_DIR/helper_scripts/gtex_ann.R" final_annotated.txt data/annotation_files/max_tissueExpression_perGene.txt final_annotated.txt
 echo "Finished annotating GTEX"
 
 echo "Annotating 3'UTR"
@@ -220,7 +264,7 @@ head -1 final_annotated.txt > header
 awk '{print $0 "\tchrom\tcstart\tcend\tloeuf\tpLi"}' header > head && mv head header
 ./data/bedtools.static.binary intersect -a final_annotated.txt -b data/annotation_files/pLI_scores_hg19.sorted.bed -loj > intersection
 cat header intersection > final_annotated.txt
-Rscript --vanilla helper_scripts/pLi_ann.R final_annotated.txt
+Rscript --vanilla "$PROJECT_DIR/helper_scripts/pLi_ann.R" final_annotated.txt
 echo "Finished annotating pLi and loeuf scores"
 
 echo "Annotating RAD21 binding sites"
@@ -240,25 +284,25 @@ cat header intersection > final_annotated.txt
 echo "Finished annotating SMC3"
 
 echo "Annotating percent GC"
-Rscript --vanilla helper_scripts/perGC.R final_annotated.txt
+Rscript --vanilla "$PROJECT_DIR/helper_scripts/perGC.R" final_annotated.txt final_annotated.txt
 echo "Finished Annotating percent GC"
 
 start_timer "S2S annotation"
 log_message "Adding S2S annotations"
-Rscript --vanilla helper_scripts/create_S2S_files.R final_annotated.txt
-(cd S2SNet || exit 1; python S2SNet_noGUI_emb_py3_repeats.py) > text_delete
-cut --complement -d$'\t' -f1,2,3 S2SNet/S2SNetTIs_Emb.txt > values
+Rscript --vanilla "$PROJECT_DIR/helper_scripts/create_S2S_files.R" final_annotated.txt "$PROJECT_DIR"
+(cd "$PROJECT_DIR/S2SNet" || exit 1; python S2SNet_noGUI_emb_py3_repeats.py) > text_delete
+cut --complement -d$'\t' -f1,2,3 "$PROJECT_DIR/S2SNet/S2SNetTIs_Emb.txt" > values
 paste final_annotated.txt values > combined && mv combined final_annotated.txt
 log_message "Finished annotating S2S markers"
 end_timer "S2S annotation"
 
 start_timer "Data formatting"
 log_message "Converting columns into binary"
-Rscript --vanilla helper_scripts/convert_cols_binary.R final_annotated.txt
+Rscript --vanilla "$PROJECT_DIR/helper_scripts/convert_cols_binary.R" final_annotated.txt final_annotated.txt
 log_message "Finished converting columns into binary"
 
 log_message "Formatting for machine learning"
-Rscript helper_scripts/format_final_annotated.R final_annotated.txt
+Rscript "$PROJECT_DIR/helper_scripts/format_final_annotated.R" final_annotated.txt
 log_message "Data formatting completed"
 end_timer "Data formatting"
 
@@ -272,13 +316,13 @@ end_timer "Cleanup"
 #Use ML models to score annotated repeats
 start_timer "ML prediction"
 log_message "Running ML prediction models..."
-python3 helper_scripts/rexprt.py
+python3 "$PROJECT_DIR/helper_scripts/rexprt.py"
 log_message "ML prediction completed"
 end_timer "ML prediction"
 
 start_timer "Post-processing"
 log_message "Post-processing results..."
-Rscript --vanilla helper_scripts/remove_duplicates.R TRsAnnotated_RExPRTscoresDups.txt RExPRT_scoresDups.txt
+Rscript --vanilla "$PROJECT_DIR/helper_scripts/remove_duplicates.R" TRsAnnotated_RExPRTscoresDups.txt RExPRT_scoresDups.txt
 
 base=$(basename "$repeats")
 filename="${base%.*}"

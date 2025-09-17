@@ -1,6 +1,10 @@
 args <- commandArgs(trailingOnly = TRUE)
 
-table <- read.csv(args[1], stringsAsFactors=F, header=T, sep="\t")
+# Use absolute paths for input and output files
+input_file <- args[1]
+output_file <- args[2]
+
+table <- read.csv(input_file, stringsAsFactors=F, header=T, sep="\t")
 
 table$promoter[table$promoter>=1] = 1
 table$opReg[table$opReg>=1] = 1
@@ -14,8 +18,4 @@ cols <- c("per_g", "per_c","per_a", "per_t", "gc_content", "eSh0", "eSh1", "eSh2
 table[cols] = round(table[cols], digits=2)
 table$gerp = round(table$gerp, digits=3)
 
-
-write.table(table, file="final_annotated.txt", quote=F, row.names=F, sep="\t")
-
-
-
+write.table(table, file=output_file, quote=F, row.names=F, sep="\t")

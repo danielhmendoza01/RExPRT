@@ -2,6 +2,10 @@
 
 set -e  # Exit on any error
 
+# Auto-detect project directory (where this script is located)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
 echo "Starting enhanced GERP annotation with parallel processing..."
 
 head -1 final_annotated.txt > header
@@ -9,7 +13,7 @@ awk '{print $0 "\tchr_gerp\tstart_gerp\tend_gerp\tgerp_score"}' header > head &&
 
 # split the TR file into separate files for each chromosome
 echo "Splitting TR file by chromosome..."
-./helper_scripts/split_bed.sh final_annotated.txt
+"$PROJECT_DIR/helper_scripts/split_bed.sh" final_annotated.txt
 mkdir -p intersections
 mkdir -p gerp_annotated
 
@@ -36,11 +40,11 @@ echo "Intersecting TRs with GERP files..."
 if [ "$USE_PARALLEL" = true ]; then
     # Use GNU parallel for better load balancing
     cat list.txt | parallel --no-notice --progress -j $PARALLEL_JOBS \
-        './data/bedtools.static.binary intersect -a repeats_by_chrom/{}.bed.gz -b data/gerp_files/{}_gerp.bed.gz -sorted -wb > intersections/{}.intersection'
+        "$PROJECT_DIR/data/bedtools.static.binary intersect -a repeats_by_chrom/{}.bed.gz -b $PROJECT_DIR/data/gerp_files/{}_gerp.bed.gz -sorted -wb > intersections/{}.intersection"
 else
     # Use traditional background jobs
     while read chr; do
-        ./data/bedtools.static.binary intersect -a repeats_by_chrom/$chr.bed.gz -b data/gerp_files/${chr}_gerp.bed.gz -sorted -wb > intersections/$chr.intersection &
+        "$PROJECT_DIR/data/bedtools.static.binary" intersect -a repeats_by_chrom/$chr.bed.gz -b "$PROJECT_DIR/data/gerp_files/${chr}_gerp.bed.gz" -sorted -wb > intersections/$chr.intersection &
     done < list.txt
     wait
 fi
@@ -61,10 +65,10 @@ fi
 echo "Calculating mean GERP scores..."
 if [ "$USE_PARALLEL" = true ]; then
     cat list.txt | parallel --no-notice --progress -j $PARALLEL_JOBS \
-        'Rscript --vanilla helper_scripts/calc_gerp.R intersections/{}.intersection'
+        "Rscript --vanilla $PROJECT_DIR/helper_scripts/calc_gerp.R intersections/{}.intersection"
 else
     while read chr; do
-        Rscript --vanilla helper_scripts/calc_gerp.R intersections/$chr.intersection &
+        Rscript --vanilla "$PROJECT_DIR/helper_scripts/calc_gerp.R" intersections/$chr.intersection &
     done < list.txt
     wait
 fi
@@ -73,6 +77,6 @@ fi
 echo "Combining GERP annotations..."
 echo -e "chr\tid\tgerp" > header
 cat header gerp_annotated/* > combined_gerp.txt
-Rscript --vanilla helper_scripts/merge_data.R combined_gerp.txt final_annotated.txt
+Rscript --vanilla "$PROJECT_DIR/helper_scripts/merge_data.R" combined_gerp.txt final_annotated.txt
 
 echo "GERP annotation completed successfully!"
