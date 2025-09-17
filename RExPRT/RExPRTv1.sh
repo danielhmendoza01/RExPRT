@@ -1,8 +1,9 @@
 #!/bin/bash
 set -eou pipefail
 
-# Auto-detect project directory (where this script is located)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Auto-detect project directory (handles symlinks correctly)
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Parse command line arguments
